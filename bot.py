@@ -9,6 +9,8 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import aiohttp
+import threading
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,6 +28,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Import webserver module
+import webserver
+
+# Start webserver in a separate thread
+webserver_thread = None
 
 
 # Twitch API Helper Class
@@ -156,6 +164,14 @@ async def on_ready():
         activity=discord.Game(name="!help for commands")
     )
     
+    # Update webserver stats
+    webserver.update_bot_stats({
+        'status': 'online',
+        'guilds': len(bot.guilds),
+        'users': len(bot.users),
+        'uptime': datetime.now().isoformat()
+    })
+    
     # Start the clip monitoring task
     bot.loop.create_task(check_for_new_clips())
 
@@ -168,6 +184,19 @@ async def on_member_join(member):
     except discord.Forbidden:
         # User has DMs disabled from server members
         print(f"Could not send DM to {member.name} - DMs are disabled")
+
+
+@bot.event
+async def on_command(ctx):
+    """Event that triggers when a command is invoked"""
+    command_data = {
+        'command': ctx.command.name,
+        'user': str(ctx.author),
+        'guild': str(ctx.guild.name) if ctx.guild else 'DM',
+        'channel': str(ctx.channel.name) if hasattr(ctx.channel, 'name') else 'DM',
+        'args': ' '.join([str(arg) for arg in ctx.args[2:]]) if len(ctx.args) > 2 else ''
+    }
+    webserver.log_command(command_data)
 
 
 @bot.command(name='hello', help='Responds with a greeting')
@@ -223,4 +252,10 @@ if __name__ == '__main__':
         print("Please add TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, and TWITCH_CHANNEL to your .env file.")
         exit(1)
     else:
+        # Start webserver in a separate thread
+        webserver_thread = threading.Thread(target=webserver.run_server, kwargs={'host': '0.0.0.0', 'port': 5000}, daemon=True)
+        webserver_thread.start()
+        print("Web dashboard available at http://localhost:5000")
+        
+        # Run the bot
         bot.run(TOKEN)

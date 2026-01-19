@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Bot Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+        .status-online {
+            color: green;
+        }
+        .status-offline {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Discord Bot Dashboard</h1>
+        <p>Connection: <span :class="connected ? 'status-online' : 'status-offline'">[[ connected ? 'Connected' : 'Disconnected' ]]</span></p>
+        
+        <h2>Bot Statistics</h2>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>Status</td>
+                <td><span :class="stats.status === 'online' ? 'status-online' : 'status-offline'">[[ stats.status ]]</span></td>
+            </tr>
+            <tr>
+                <td>Total Commands</td>
+                <td>[[ stats.total_commands ]]</td>
+            </tr>
+            <tr>
+                <td>Guilds</td>
+                <td>[[ stats.guilds ]]</td>
+            </tr>
+            <tr>
+                <td>Users</td>
+                <td>[[ stats.users ]]</td>
+            </tr>
+        </table>
+
+        <h2>Command History</h2>
+        <button @click="filter = 'all'">All</button>
+        <button @click="filter = 'recent'">Recent (10)</button>
+        
+        <table v-if="filteredCommands.length > 0">
+            <tr>
+                <th>Command</th>
+                <th>User</th>
+                <th>Guild</th>
+                <th>Channel</th>
+                <th>Args</th>
+                <th>Time</th>
+            </tr>
+            <tr v-for="cmd in filteredCommands" :key="cmd.timestamp">
+                <td>![[ cmd.command ]]</td>
+                <td>[[ cmd.user ]]</td>
+                <td>[[ cmd.guild ]]</td>
+                <td>[[ cmd.channel ]]</td>
+                <td>[[ cmd.args ]]</td>
+                <td>[[ formatTime(cmd.timestamp) ]]</td>
+            </tr>
+        </table>
+        <p v-else>No commands executed yet.</p>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    commands: [],
+                    stats: {
+                        total_commands: 0,
+                        guilds: 0,
+                        users: 0,
+                        status: 'offline'
+                    },
+                    filter: 'all',
+                    connected: false,
+                    socket: null
+                }
+            },
+            computed: {
+                filteredCommands() {
+                    if (this.filter === 'recent') {
+                        return this.commands.slice(0, 10);
+                    }
+                    return this.commands;
+                }
+            },
+            methods: {
+                formatTime(timestamp) {
+                    const date = new Date(timestamp);
+                    return date.toLocaleTimeString();
+                },
+                initSocket() {
+                    this.socket = io();
+
+                    this.socket.on('connect', () => {
+                        this.connected = true;
+                        console.log('Connected to server');
+                    });
+
+                    this.socket.on('disconnect', () => {
+                        this.connected = false;
+                        console.log('Disconnected from server');
+                    });
+
+                    this.socket.on('command_history', (history) => {
+                        this.commands = history.reverse();
+                    });
+
+                    this.socket.on('new_command', (command) => {
+                        this.commands.unshift(command);
+                        if (this.commands.length > 100) {
+                            this.commands.pop();
+                        }
+                    });
+
+                    this.socket.on('stats_update', (stats) => {
+                        this.stats = stats;
+                    });
+                }
+            },
+            mounted() {
+                this.initSocket();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
