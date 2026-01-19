@@ -17,7 +17,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 # Create bot instance with command prefix and intents
 intents = discord.Intents.default()
 intents.message_content = True  # Required for reading message content
-intents.members = True  # Required for member-related events
+intents.members = True  # Required for member-related events (privileged intent - requires approval for verified bots with 75+ servers)
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -38,10 +38,7 @@ async def on_ready():
 async def on_member_join(member):
     """Event that triggers when a new member joins the server"""
     try:
-        await member.create_dm()
-        await member.dm_channel.send(
-            f'Hi {member.name}, welcome to the server!'
-        )
+        await member.send(f'Hi {member.name}, welcome to the server!')
     except discord.Forbidden:
         # User has DMs disabled from server members
         print(f"Could not send DM to {member.name} - DMs are disabled")
