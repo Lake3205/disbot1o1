@@ -16,8 +16,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Create bot instance with command prefix and intents
 intents = discord.Intents.default()
-intents.message_content = True  # Required for reading message content
-intents.members = True  # Required for member-related events (privileged intent - requires approval for verified bots with 75+ servers)
+intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
