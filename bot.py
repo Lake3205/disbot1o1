@@ -37,10 +37,14 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     """Event that triggers when a new member joins the server"""
-    await member.create_dm()
-    await member.dm_channel.send(
-        f'Hi {member.name}, welcome to the server!'
-    )
+    try:
+        await member.create_dm()
+        await member.dm_channel.send(
+            f'Hi {member.name}, welcome to the server!'
+        )
+    except discord.Forbidden:
+        # User has DMs disabled from server members
+        print(f"Could not send DM to {member.name} - DMs are disabled")
 
 
 @bot.command(name='hello', help='Responds with a greeting')
@@ -90,5 +94,6 @@ if __name__ == '__main__':
     if TOKEN is None:
         print("Error: DISCORD_TOKEN not found in environment variables.")
         print("Please create a .env file with your Discord bot token.")
+        exit(1)
     else:
         bot.run(TOKEN)
